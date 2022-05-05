@@ -1,0 +1,56 @@
+trigger:
+# The below are triggers for branch analysis
+- master
+- release*
+- feature/*
+# Triggers for pull requests are implemented through Azure DevOps branch policies
+# In Azure DevOps See: Repos --> Branches --> Branch policies --> Build validation
+
+variables:
+- name: SONAR_SERVICE_CONNECTION
+  value: 'SQ LATEST'
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+- task: NuGetCommand@2
+  displayName: 'NuGet restore'
+
+- task: SonarQubePrepare@5
+  displayName: '.Net Scanner BEGIN'
+  inputs:
+    # Select your Azure Service Connection name for SonarQube here
+    SonarQube: ${{ variables.SONAR_SERVICE_CONNECTION }}
+
+    # Select scanner to use:
+    # 'MSBuild': For Scanner for .Net, ie for .Net Framework (MSBuild) or .Net Core (dotnet build)
+    # 'Cli': For Scanner CLI (sonar-scanner)
+    # 'Other': For Scanner for Maven or Scanner for Gradle
+    scannerMode: 'MSBuild'
+
+    # Define your sonar.projectKey here
+    projectKey: 'demo:azdo-dotnetfwk'
+
+    # Add the analysis specific properties here like
+    # sonar.exclusions etc...
+    extraProperties: |
+      sonar.projectName=AzDO .Net Framework project
+      sonar.verbose=true
+
+- task: MSBuild@1
+  displayName: 'MSBuild'
+  inputs:
+    clean: true
+    solution: '**/*.sln' 
+
+- task: SonarQubeAnalyze@5
+  # No parameters ever needed for this task except an optional displayName
+  displayName: '.Net Scanner END'
+
+# **Optional** task to publish quality in Azure DevOps
+- task: SonarQubePublish@5
+  displayName: 'Publish quality gate'
+  inputs:
+    # Max duration in s to wait for the Quality Gate
+    pollingTimeoutSec: '300'
